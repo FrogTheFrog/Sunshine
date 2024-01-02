@@ -22,6 +22,7 @@
 // local includes
 #include "config.h"
 #include "crypto.h"
+#include "display_device/session.h"
 #include "httpcommon.h"
 #include "main.h"
 #include "network.h"
@@ -763,12 +764,17 @@ namespace nvhttp {
     print_req<SimpleWeb::HTTPS>(request);
 
     pt::ptree tree;
+    bool need_to_restore_display_state { false };
     auto g = util::fail_guard([&]() {
       std::ostringstream data;
 
       pt::write_xml(data, tree);
       response->write(data.str());
       response->close_connection_after_response = true;
+
+      if (need_to_restore_display_state) {
+        display_device::session_t::get().restore_state();
+      }
     });
 
     if (rtsp_stream::session_count() == config::stream.channels) {
@@ -803,11 +809,29 @@ namespace nvhttp {
       return;
     }
 
-    // Probe encoders again before streaming to ensure our chosen
-    // encoder matches the active GPU (which could have changed
-    // due to hotplugging, driver crash, primary monitor change,
-    // or any number of other factors).
+    host_audio = util::from_view(get_arg(args, "localAudioPlayMode"));
+    const auto launch_session = make_launch_session(host_audio, args);
+
     if (rtsp_stream::session_count() == 0) {
+      // We want to prepare display only if there are no active sessions at
+      // the moment. This needs to be done before probing encoders as it could
+      // change display device's state.
+      const auto result { display_device::session_t::get().configure_display(config::video, *launch_session) };
+      if (!result) {
+        tree.put("root.<xmlattr>.status_code", result.get_error_code());
+        tree.put("root.<xmlattr>.status_message", result.get_error_message());
+        tree.put("root.gamesession", 0);
+
+        return;
+      }
+
+      // The display should be restored by the fail guard in case something happens.
+      need_to_restore_display_state = true;
+
+      // Probe encoders again before streaming to ensure our chosen
+      // encoder matches the active GPU (which could have changed
+      // due to hotplugging, driver crash, primary monitor change,
+      // or any number of other factors).
       if (video::probe_encoders()) {
         tree.put("root.<xmlattr>.status_code", 503);
         tree.put("root.<xmlattr>.status_message", "Failed to initialize video capture/encoding. Is a display connected and turned on?");
@@ -816,9 +840,6 @@ namespace nvhttp {
         return;
       }
     }
-
-    host_audio = util::from_view(get_arg(args, "localAudioPlayMode"));
-    auto launch_session = make_launch_session(host_audio, args);
 
     auto encryption_mode = net::encryption_mode_for_address(request->remote_endpoint().address());
     if (!launch_session->rtsp_cipher && encryption_mode == config::ENCRYPTION_MODE_MANDATORY) {
@@ -849,6 +870,9 @@ namespace nvhttp {
     tree.put("root.gamesession", 1);
 
     rtsp_stream::launch_session_raise(launch_session);
+
+    // Stream was started successfully, we will restore the state when the app or session terminates
+    need_to_restore_display_state = false;
   }
 
   void
@@ -894,7 +918,28 @@ namespace nvhttp {
       return;
     }
 
+    // Newer Moonlight clients send localAudioPlayMode on /resume too,
+    // so we should use it if it's present in the args and there are
+    // no active sessions we could be interfering with.
+    if (rtsp_stream::session_count() == 0 && args.find("localAudioPlayMode"s) != std::end(args)) {
+      host_audio = util::from_view(get_arg(args, "localAudioPlayMode"));
+    }
+    const auto launch_session = make_launch_session(host_audio, args);
+
     if (rtsp_stream::session_count() == 0) {
+      // We want to prepare display only if there are no active sessions at
+      // the moment. This needs to be done before probing encoders as it could
+      // change display device's state. Since we are resuming the stream,
+      // the display state shall not be restored in case something else fails.
+      const auto result { display_device::session_t::get().configure_display(config::video, *launch_session) };
+      if (!result) {
+        tree.put("root.<xmlattr>.status_code", result.get_error_code());
+        tree.put("root.<xmlattr>.status_message", result.get_error_message());
+        tree.put("root.gamesession", 0);
+
+        return;
+      }
+
       // Probe encoders again before streaming to ensure our chosen
       // encoder matches the active GPU (which could have changed
       // due to hotplugging, driver crash, primary monitor change,
@@ -906,16 +951,7 @@ namespace nvhttp {
 
         return;
       }
-
-      // Newer Moonlight clients send localAudioPlayMode on /resume too,
-      // so we should use it if it's present in the args and there are
-      // no active sessions we could be interfering with.
-      if (args.find("localAudioPlayMode"s) != std::end(args)) {
-        host_audio = util::from_view(get_arg(args, "localAudioPlayMode"));
-      }
     }
-
-    auto launch_session = make_launch_session(host_audio, args);
 
     auto encryption_mode = net::encryption_mode_for_address(request->remote_endpoint().address());
     if (!launch_session->rtsp_cipher && encryption_mode == config::ENCRYPTION_MODE_MANDATORY) {
@@ -966,6 +1002,9 @@ namespace nvhttp {
     if (proc::proc.running() > 0) {
       proc::proc.terminate();
     }
+
+    // The state needs to be restored regardless of whether "proc::proc.terminate()" was called or not.
+    display_device::session_t::get().restore_state();
   }
 
   void

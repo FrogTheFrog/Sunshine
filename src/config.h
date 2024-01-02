@@ -71,7 +71,14 @@ namespace config {
     std::string capture;
     std::string encoder;
     std::string adapter_name;
+
     std::string output_name;
+    int display_device_prep;
+    int resolution_change;
+    std::string manual_resolution;
+    int refresh_rate_change;
+    std::string manual_refresh_rate;
+    int hdr_prep;
   };
 
   struct audio_t {

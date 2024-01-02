@@ -20,6 +20,7 @@
 #include "rtsp.h"
 #include "utility.h"
 
+#include "display_device/parsed_config.h"
 #include "platform/common.h"
 
 #ifdef _WIN32
@@ -363,7 +364,14 @@ namespace config {
     {},  // capture
     {},  // encoder
     {},  // adapter_name
+
     {},  // output_name
+    (int) display_device::parsed_config_t::device_prep_e::no_operation,  // display_device_prep
+    (int) display_device::parsed_config_t::resolution_change_e::automatic,  // resolution_change
+    {},  // manual_resolution
+    (int) display_device::parsed_config_t::refresh_rate_change_e::automatic,  // refresh_rate_change
+    {},  // manual_refresh_rate
+    (int) display_device::parsed_config_t::hdr_prep_e::automatic  // hdr_prep
   };
 
   audio_t audio {
@@ -996,7 +1004,14 @@ namespace config {
     string_f(vars, "capture", video.capture);
     string_f(vars, "encoder", video.encoder);
     string_f(vars, "adapter_name", video.adapter_name);
+
     string_f(vars, "output_name", video.output_name);
+    int_f(vars, "display_device_prep", video.display_device_prep, display_device::parsed_config_t::device_prep_from_view);
+    int_f(vars, "resolution_change", video.resolution_change, display_device::parsed_config_t::resolution_change_from_view);
+    string_f(vars, "manual_resolution", video.manual_resolution);
+    int_f(vars, "refresh_rate_change", video.refresh_rate_change, display_device::parsed_config_t::refresh_rate_change_from_view);
+    string_f(vars, "manual_refresh_rate", video.manual_refresh_rate);
+    int_f(vars, "hdr_prep", video.hdr_prep, display_device::parsed_config_t::hdr_prep_from_view);
 
     path_f(vars, "pkey", nvhttp.pkey);
     path_f(vars, "cert", nvhttp.cert);

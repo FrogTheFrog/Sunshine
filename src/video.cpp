@@ -19,6 +19,7 @@ extern "C" {
 
 #include "cbs.h"
 #include "config.h"
+#include "display_device/display_device.h"
 #include "input.h"
 #include "main.h"
 #include "nvenc/nvenc_base.h"
@@ -1093,6 +1094,8 @@ namespace video {
    */
   void
   refresh_displays(platf::mem_type_e dev_type, std::vector<std::string> &display_names, int &current_display_index) {
+    // It is possible that the output display name may be empty even if it wasn't before (device disconnected)
+    const auto output_display_name { display_device::get_display_name(config::video.output_name) };
     std::string current_display_name;
 
     // If we have a current display index, let's start with that
@@ -1111,7 +1114,7 @@ namespace video {
       return;
     }
     else if (display_names.empty()) {
-      display_names.emplace_back(config::video.output_name);
+      display_names.emplace_back(output_display_name);
     }
 
     // We now have a new display name list, so reset the index back to 0
@@ -1131,7 +1134,7 @@ namespace video {
     }
     else {
       for (int x = 0; x < display_names.size(); ++x) {
-        if (display_names[x] == config::video.output_name) {
+        if (display_names[x] == output_display_name) {
           current_display_index = x;
           return;
         }
@@ -2347,7 +2350,8 @@ namespace video {
 
   int
   validate_config(std::shared_ptr<platf::display_t> &disp, const encoder_t &encoder, const config_t &config) {
-    reset_display(disp, encoder.platform_formats->dev_type, config::video.output_name, config);
+    const auto output_display_name { display_device::get_display_name(config::video.output_name) };
+    reset_display(disp, encoder.platform_formats->dev_type, output_display_name, config);
     if (!disp) {
       return -1;
     }
@@ -2425,7 +2429,8 @@ namespace video {
     config_t config_autoselect { 1920, 1080, 60, 1000, 1, 0, 1, 0, 0 };
 
     // If the encoder isn't supported at all (not even H.264), bail early
-    reset_display(disp, encoder.platform_formats->dev_type, config::video.output_name, config_autoselect);
+    const auto output_display_name { display_device::get_display_name(config::video.output_name) };
+    reset_display(disp, encoder.platform_formats->dev_type, output_display_name, config_autoselect);
     if (!disp) {
       return false;
     }

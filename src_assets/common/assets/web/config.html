@@ -469,14 +469,20 @@
 
         <!-- Output Name -->
         <div class="mb-3" v-if="platform === 'windows'">
-          <label for="output_name" class="form-label">Output Name</label>
-          <input type="text" class="form-control" id="output_name" placeholder="\\.\DISPLAY1"
+          <label for="output_name" class="form-label">Display Device Id</label>
+          <input type="text" class="form-control" id="output_name"
+            placeholder="\\?\DISPLAY-ACI27EC-5&4fd2de4&2&UID4355-{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}"
             v-model="config.output_name" />
           <div class="form-text">
-            Manually specify a display to use for capture. If unset, the primary display is captured.<br>
+            Manually specify a display device id to use for capture. If unset, the primary display is captured.<br>
             Note: If you specified a GPU above, this display must be connected to that GPU.<br>
-            The appropriate values can be found using the following command:<br>
-            tools\dxgi-info.exe<br>
+            <br>
+            During Sunshine startup, you should see the list of detected display devices and their ids, e.g.:<br>
+            <b>&nbsp;&nbsp;&nbsp;&nbsp;DEVICE ID: \\?\DISPLAY-ACI27EC-5&4fd2de4&2&UID4355-{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}</b><br>
+            <b>&nbsp;&nbsp;&nbsp;&nbsp;DISPLAY NAME: \\.\DISPLAY1</b><br>
+            <b>&nbsp;&nbsp;&nbsp;&nbsp;FRIENDLY NAME: ROG PG279Q</b><br>
+            <b>&nbsp;&nbsp;&nbsp;&nbsp;DEVICE STATE: PRIMARY</b><br>
+            <b>&nbsp;&nbsp;&nbsp;&nbsp;HDR STATE: UNKNOWN</b>
           </div>
         </div>
         <div class="mb-3" v-if="platform === 'linux'">
@@ -494,6 +500,103 @@
             Info: Detected monitor 4: DVI-D-1, connected: false
           </pre>
             You need to use the value before the colon in the output, e.g. <b>1</b>.
+          </div>
+        </div>
+
+        <!-- Display device options -->
+        <div class="mb-3 accordion" v-if="platform === 'windows'">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                data-bs-target="#panelsStayOpen-collapseOne">
+                Display device options
+              </button>
+            </h2>
+            <div id="panelsStayOpen-collapseOne" class="accordion-collapse collapse show"
+              aria-labelledby="panelsStayOpen-headingOne">
+              <div class="accordion-body">
+                <div class="mb-3">
+                  <label class="form-label">
+                    Note about how settings are applied
+                  </label>
+                  <div class="form-text">
+                    Windows saves various display settings for each combination of currently active displays.<br>
+                    Sunshine applies changes to a display(-s) belonging to such a display combination.<br>
+                    If you disconnect a device which was active when Sunshine applied the settings, the changes will not be reverted<br>
+                    back unless the combination is active again by the time Sunshine tries to revert changes!<br>
+                    The same is true if you connect a new device and Windows decides to activate it, which will<br>
+                    change the active display combination.
+                  </div>
+                </div>
+                
+                <!-- Device display preparation -->
+                <div class="mb-3">
+                  <label for="display_device_prep" class="form-label">
+                    Display preparation
+                  </label>
+                  <select id="display_device_prep" class="form-select" v-model="config.display_device_prep">
+                    <option value="no_operation">Disabled</option>
+                    <option value="ensure_active">Activate the display automatically</option>
+                    <option value="ensure_primary">Activate the display automatically and make it a primary display</option>
+                    <option value="ensure_only_display">Deactivate other displays and activate only the specified display</option>
+                  </select>
+                </div>
+
+                <!-- Resolution change -->
+                <div class="mb-3">
+                  <label for="resolution_change" class="form-label">
+                    Resolution change
+                  </label>
+                  <select id="resolution_change" class="form-select" v-model="config.resolution_change">
+                    <option value="no_operation">Disabled</option>
+                    <option value="automatic">Use resolution provided by the client</option>
+                    <option value="manual">Use manually entered resolution</option>
+                  </select>
+                  <div class="form-text" v-if="config.resolution_change === 'automatic'">
+                    "Optimize game settings" option must be enabled on the Moonlight client for this to work.
+                  </div>
+
+                  <!-- Manual resolution -->
+                  <div class="mt-2 ps-4" v-if="config.resolution_change === 'manual'">
+                    <div class="form-text">
+                      Enter the resolution to be used
+                    </div>
+                    <input type="text" class="form-control" id="manual_resolution" placeholder="2560x1440" v-model="config.manual_resolution" />
+                  </div>
+                </div>
+
+                <!-- Refresh rate change -->
+                <div class="mb-3">
+                  <label for="refresh_rate_change" class="form-label">
+                    Refresh rate change
+                  </label>
+                  <select id="refresh_rate_change" class="form-select" v-model="config.refresh_rate_change">
+                    <option value="no_operation">Disabled</option>
+                    <option value="automatic">Use FPS value provided by the client</option>
+                    <option value="manual">Use manually entered refresh rate</option>
+                  </select>
+
+                  <!-- Manual refresh rate -->
+                  <div class="mt-2 ps-4" v-if="config.refresh_rate_change === 'manual'">
+                    <div class="form-text">
+                      Enter the refresh rate to be used
+                    </div>
+                    <input type="text" class="form-control" id="manual_refresh_rate" placeholder="59.95" v-model="config.manual_refresh_rate" />
+                  </div>
+                </div>
+
+                <!-- HDR preparation -->
+                <div class="mb-3">
+                  <label for="hdr_prep" class="form-label">
+                    HDR state change
+                  </label>
+                  <select id="hdr_prep" class="form-select" v-model="config.hdr_prep">
+                    <option value="no_operation">Disabled</option>
+                    <option value="automatic">Switch on/off the HDR mode as requested by the client</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1241,6 +1344,12 @@
               "install_steam_audio_drivers": "enabled",
               "adapter_name": "",
               "output_name": "",
+              "display_device_prep": "no_operation",
+              "resolution_change": "automatic",
+              "manual_resolution": "",
+              "refresh_rate_change": "automatic",
+              "manual_refresh_rate": "",
+              "hdr_prep": "automatic",
               "resolutions": "[352x240,480x360,858x480,1280x720,1920x1080,2560x1080,3440x1440,1920x1200,3840x2160,3840x1600]",
               "fps": "[10,30,60,90,120]",
             },

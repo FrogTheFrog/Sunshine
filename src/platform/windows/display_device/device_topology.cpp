@@ -258,6 +258,16 @@ namespace display_device {
       return true;
     }
 
+    std::string
+    convert_to_string(const std::wstring &str) {
+      if (str.empty()) {
+        return {};
+      }
+
+      std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
+      return conv.to_bytes(str);
+    }
+
   }  // namespace
 
   device_info_map_t
@@ -275,24 +285,43 @@ namespace display_device {
       const auto path_index { topology.second };
       const auto &path { display_data->paths.at(path_index) };
 
-      if (w_utils::is_active(path)) {
-        const auto mode { w_utils::get_source_mode(w_utils::get_source_index(path, display_data->modes), display_data->modes) };
+      BOOST_LOG(info) << device_id;
+      BOOST_LOG(info) << (w_utils::is_active(path) ? w_utils::get_display_name(path) : "NO DISPLAY NAME");
 
-        available_devices[device_id] = device_info_t {
-          w_utils::get_display_name(path),
-          w_utils::get_friendly_name(path),
-          mode && w_utils::is_primary(*mode) ? device_state_e::primary : device_state_e::active,
-          w_utils::get_hdr_state(path)
-        };
+      DISPLAYCONFIG_TARGET_DEVICE_NAME target_name = {};
+      target_name.header.adapterId = path.targetInfo.adapterId;
+      target_name.header.id = path.targetInfo.id;
+      target_name.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+      target_name.header.size = sizeof(target_name);
+
+      LONG result { DisplayConfigGetDeviceInfo(&target_name.header) };
+      if (result != ERROR_SUCCESS) {
+        continue;
       }
-      else {
-        available_devices[device_id] = device_info_t {
-          std::string {},  // Inactive device can have multiple display names, so it's just meaningless
-          w_utils::get_friendly_name(path),
-          device_state_e::inactive,
-          hdr_state_e::unknown
-        };
-      }
+
+      BOOST_LOG(info) << "outputTechnology: " << target_name.outputTechnology;
+      BOOST_LOG(info) << "edidManufactureId: " << target_name.edidManufactureId;
+      BOOST_LOG(info) << "edidProductCodeId: " << target_name.edidProductCodeId;
+      BOOST_LOG(info) << "connectorInstance: " << target_name.connectorInstance;
+
+      // if (w_utils::is_active(path)) {
+      //   const auto mode { w_utils::get_source_mode(w_utils::get_source_index(path, display_data->modes), display_data->modes) };
+
+      //   available_devices[device_id] = device_info_t {
+      //     w_utils::get_display_name(path),
+      //     w_utils::get_friendly_name(path),
+      //     mode && w_utils::is_primary(*mode) ? device_state_e::primary : device_state_e::active,
+      //     w_utils::get_hdr_state(path)
+      //   };
+      // }
+      // else {
+      //   available_devices[device_id] = device_info_t {
+      //     std::string {},  // Inactive device can have multiple display names, so it's just meaningless
+      //     w_utils::get_friendly_name(path),
+      //     device_state_e::inactive,
+      //     hdr_state_e::unknown
+      //   };
+      // }
     }
 
     return available_devices;

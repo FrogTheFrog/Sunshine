@@ -489,6 +489,8 @@ SessionMonitorWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
  */
 int
 main(int argc, char *argv[]) {
+  display_device::enum_available_devices();
+  return 0;
   lifetime::argv = argv;
 
   task_pool_util::TaskPool::task_id_t force_shutdown = nullptr;

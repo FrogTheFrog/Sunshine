@@ -1,9 +1,13 @@
 // lib includes
+#include <boost/algorithm/string.hpp>
 #include <boost/variant.hpp>
 
 // local includes
 #include "src/main.h"
 #include "windows_utils.h"
+
+#include <SetupApi.h>
+#include <cfgmgr32.h>
 
 namespace display_device {
 
@@ -303,6 +307,69 @@ namespace display_device {
       BOOST_LOG(info) << "edidManufactureId: " << target_name.edidManufactureId;
       BOOST_LOG(info) << "edidProductCodeId: " << target_name.edidProductCodeId;
       BOOST_LOG(info) << "connectorInstance: " << target_name.connectorInstance;
+
+      const GUID GUID_DEVINTERFACE_MONITOR = { 0xe6f07b5f, 0xee97, 0x4a90, 0xb0, 0x76, 0x33, 0xf5, 0x7b, 0xf4, 0xea, 0xa7 };
+      const HDEVINFO hDevInfo = SetupDiGetClassDevs(&GUID_DEVINTERFACE_MONITOR, NULL, NULL, DIGCF_DEVICEINTERFACE);
+
+      // Instead of creating a buffer in each iteration and calling SetupDiGetDeviceInterfaceDetail
+      // twice (once to find required buffer size and once to actually get the data), we create a
+      // buffer up front with the maximum size it can have.
+      // The 128 contant comes from the fact that the DeviceId parameter in DISPLAY_DEVICE is
+      // at most 128 characters and we will be looking for a match with this id later.
+      // Note that the buffer is slightly larger than it has to be (as "sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA)"
+      // was used instead of "offsetof(SP_DEVICE_INTERFACE_DETAIL_DATA, DevicePath)").
+      wchar_t devPathBuffer[sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W) + (128 * sizeof(wchar_t))];
+
+      // Loop over the device interfaces using the SetupAPI
+      DWORD monitorIndex = 0;
+      SP_DEVICE_INTERFACE_DATA devInfo;
+      devInfo.cbSize = sizeof(devInfo);
+      while (SetupDiEnumDeviceInterfaces(hDevInfo, NULL, &GUID_DEVINTERFACE_MONITOR, monitorIndex, &devInfo)) {
+        ++monitorIndex;
+
+        // Retrieve the id of the device interface
+        SP_DEVICE_INTERFACE_DETAIL_DATA_W *devPathData = (SP_DEVICE_INTERFACE_DETAIL_DATA_W *) devPathBuffer;
+        devPathData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
+        SP_DEVINFO_DATA devInfoData;
+        memset(&devInfoData, 0, sizeof(devInfoData));
+        devInfoData.cbSize = sizeof(devInfoData);
+        if (!SetupDiGetDeviceInterfaceDetailW(hDevInfo, &devInfo, devPathData, sizeof(devPathBuffer), NULL, &devInfoData))
+          continue;  // Error
+
+        // We now have the device id that we will use to match this device on other places later.
+        std::string deviceId { convert_to_string(devPathData->DevicePath) };
+        if (!boost::iequals(device_id, deviceId)) {
+          continue;
+        }
+
+        // Find the instance id of the device to look up the EDID in the registry
+        wchar_t instanceId[MAX_DEVICE_ID_LEN];
+        if (!SetupDiGetDeviceInstanceIdW(hDevInfo, &devInfoData, instanceId, MAX_PATH, NULL))
+          continue;  // Error
+
+        BOOST_LOG(info) << "instanceId: " << convert_to_string(instanceId);
+
+        // Find the EDID registry key
+        HKEY hEDIDRegKey = SetupDiOpenDevRegKey(hDevInfo, &devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
+        if (!hEDIDRegKey || (hEDIDRegKey == INVALID_HANDLE_VALUE))
+          continue;  // Error
+
+        // Read the EDID data from the registry
+        BYTE dataEDID[1024];
+        DWORD sizeOfDataEDID = sizeof(dataEDID);
+        if (ERROR_SUCCESS == RegQueryValueExW(hEDIDRegKey, L"EDID", NULL, NULL, dataEDID, &sizeOfDataEDID)) {
+          // Extract the width and height of the monitor from the EDID
+          int ManuId = (dataEDID[9] << 8) | dataEDID[8];
+          BOOST_LOG(info) << "ManuId: " << ManuId;
+          int ProdId = (dataEDID[11] << 8) | dataEDID[10];
+          BOOST_LOG(info) << "ProdId: " << ProdId;
+          int SerialId = (dataEDID[15] << 24) | (dataEDID[14] << 16) | (dataEDID[13] << 8) | dataEDID[12];
+          BOOST_LOG(info) << "SerialId: " << SerialId;
+          
+        }
+
+        RegCloseKey(hEDIDRegKey);
+      }
 
       // if (w_utils::is_active(path)) {
       //   const auto mode { w_utils::get_source_mode(w_utils::get_source_index(path, display_data->modes), display_data->modes) };

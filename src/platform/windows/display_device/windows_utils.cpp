@@ -110,7 +110,7 @@ namespace display_device {
       // This is not the prettiest id there is, but it seems to be unique.
       // The MONITOR ID that MultiMonitorTool uses is not always unique in some combinations, so we'll just go with the device path.
       auto device_id { convert_to_string(target_name.monitorDevicePath) };
-      std::replace(std::begin(device_id), std::end(device_id), '#', '-');  // Hashtags are not supported by Sunshine config
+      //std::replace(std::begin(device_id), std::end(device_id), '#', '-');  // Hashtags are not supported by Sunshine config
       return device_id;
     }
 

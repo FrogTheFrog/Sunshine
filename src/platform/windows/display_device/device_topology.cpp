@@ -1,5 +1,8 @@
 // lib includes
 #include <boost/algorithm/string.hpp>
+#include <boost/uuid/name_generator_sha1.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_io.hpp>
 #include <boost/variant.hpp>
 
 // local includes
@@ -272,6 +275,13 @@ namespace display_device {
       return conv.to_bytes(str);
     }
 
+    std::string
+    uuid_from_edid(const BYTE *input, const int input_size) {
+      static constexpr boost::uuids::uuid ns_id {};  // null namespace
+      const auto boost_uuid { boost::uuids::name_generator_sha1 { ns_id }(input, input_size) };
+      return "{" + boost::uuids::to_string(boost_uuid) + "}";
+    }
+
   }  // namespace
 
   device_info_map_t
@@ -399,6 +409,8 @@ namespace display_device {
                 }
               }
             }
+
+            BOOST_LOG(info) << "edidUUID: " << uuid_from_edid(dataEDID, sizeOfDataEDID);
           }
 
           RegCloseKey(regKey);

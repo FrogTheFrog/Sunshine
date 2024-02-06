@@ -305,6 +305,7 @@ namespace display_device {
         continue;
       }
 
+      BOOST_LOG(info) << "friendlyName: " << w_utils::get_friendly_name(path);
       BOOST_LOG(info) << "outputTechnology: " << target_name.outputTechnology;
       BOOST_LOG(info) << "edidManufactureId: " << target_name.edidManufactureId;
       BOOST_LOG(info) << "edidProductCodeId: " << target_name.edidProductCodeId;
@@ -365,8 +366,8 @@ namespace display_device {
           BYTE dataEDID[1024];
           DWORD sizeOfDataEDID = sizeof(dataEDID);
           if (ERROR_SUCCESS == RegQueryValueExW(regKey, L"EDID", NULL, NULL, dataEDID, &sizeOfDataEDID)) {
-            // We're looking for EDID version 1.04
-            if (dataEDID[18] == 0x01 && dataEDID[19] == 0x04) {
+            // We're looking for EDID version 1.03 or 1.04
+            if (dataEDID[18] == 0x01 && (dataEDID[19] == 0x03 || dataEDID[19] == 0x04)) {
               // Extract the width and height of the monitor from the EDID
               int SerialId = (dataEDID[15] << 24) | (dataEDID[14] << 16) | (dataEDID[13] << 8) | dataEDID[12];
               BOOST_LOG(info) << "edidSerialId: " << SerialId;

@@ -289,8 +289,10 @@ namespace display_device {
       const auto path_index { topology.second };
       const auto &path { display_data->paths.at(path_index) };
 
-      BOOST_LOG(info) << device_id;
-      BOOST_LOG(info) << (w_utils::is_active(path) ? w_utils::get_display_name(path) : "NO DISPLAY NAME");
+      BOOST_LOG(info) << "---------------------";
+
+      BOOST_LOG(info) << "deviceMonitorPath: " << device_id;
+      BOOST_LOG(info) << "displayName:" << (w_utils::is_active(path) ? w_utils::get_display_name(path) : "NO DISPLAY NAME");
 
       DISPLAYCONFIG_TARGET_DEVICE_NAME target_name = {};
       target_name.header.adapterId = path.targetInfo.adapterId;
@@ -348,49 +350,98 @@ namespace display_device {
           continue;  // Error
 
         BOOST_LOG(info) << "instanceId: " << convert_to_string(instanceId);
+        const std::wstring base_path { L"SYSTEM\\CurrentControlSet\\Enum\\" };
+        const std::wstring instance_path { base_path + std::wstring { instanceId } };
+        const std::wstring edid_path { instance_path + L"\\Device Parameters" };
 
-        // Find the EDID registry key
-        HKEY hEDIDRegKey = SetupDiOpenDevRegKey(hDevInfo, &devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
-        if (!hEDIDRegKey || (hEDIDRegKey == INVALID_HANDLE_VALUE))
-          continue;  // Error
+        {
+          // Find the EDID registry key
+          HKEY regKey;
+          auto status = RegOpenKeyW(HKEY_LOCAL_MACHINE, edid_path.c_str(), &regKey);
+          if (status != ERROR_SUCCESS)
+            continue;  // Error
 
-        // Read the EDID data from the registry
-        BYTE dataEDID[1024];
-        DWORD sizeOfDataEDID = sizeof(dataEDID);
-        if (ERROR_SUCCESS == RegQueryValueExW(hEDIDRegKey, L"EDID", NULL, NULL, dataEDID, &sizeOfDataEDID)) {
-          // Extract the width and height of the monitor from the EDID
-          int ManuId = (dataEDID[9] << 8) | dataEDID[8];
-          BOOST_LOG(info) << "ManuId: " << ManuId;
-          int ProdId = (dataEDID[11] << 8) | dataEDID[10];
-          BOOST_LOG(info) << "ProdId: " << ProdId;
-          int SerialId = (dataEDID[15] << 24) | (dataEDID[14] << 16) | (dataEDID[13] << 8) | dataEDID[12];
-          BOOST_LOG(info) << "SerialId: " << SerialId;
-          
+          // Read the EDID data from the registry
+          BYTE dataEDID[1024];
+          DWORD sizeOfDataEDID = sizeof(dataEDID);
+          if (ERROR_SUCCESS == RegQueryValueExW(regKey, L"EDID", NULL, NULL, dataEDID, &sizeOfDataEDID)) {
+            // We're looking for EDID version 1.04
+            if (dataEDID[18] == 0x01 && dataEDID[19] == 0x04) {
+              // Extract the width and height of the monitor from the EDID
+              int SerialId = (dataEDID[15] << 24) | (dataEDID[14] << 16) | (dataEDID[13] << 8) | dataEDID[12];
+              BOOST_LOG(info) << "edidSerialId: " << SerialId;
+
+              int edidMonitorDescriptorIndex = 72;
+              if (dataEDID[edidMonitorDescriptorIndex] == 0x00 && dataEDID[edidMonitorDescriptorIndex + 1] == 0x00) {
+                if (dataEDID[edidMonitorDescriptorIndex + 3] == 0xFF || dataEDID[edidMonitorDescriptorIndex + 3] == 0xFE || dataEDID[edidMonitorDescriptorIndex + 3] == 0xFC) {
+                  std::string some_ascii_string;
+                  some_ascii_string.assign(reinterpret_cast<char *>(&dataEDID[edidMonitorDescriptorIndex + 5]), 13);
+                  BOOST_LOG(info) << "edidMonitorDESC1: " << boost::algorithm::trim_copy(some_ascii_string);
+                }
+              }
+
+              edidMonitorDescriptorIndex = 90;
+              if (dataEDID[edidMonitorDescriptorIndex] == 0x00 && dataEDID[edidMonitorDescriptorIndex + 1] == 0x00) {
+                if (dataEDID[edidMonitorDescriptorIndex + 3] == 0xFF || dataEDID[edidMonitorDescriptorIndex + 3] == 0xFE || dataEDID[edidMonitorDescriptorIndex + 3] == 0xFC) {
+                  std::string some_ascii_string;
+                  some_ascii_string.assign(reinterpret_cast<char *>(&dataEDID[edidMonitorDescriptorIndex + 5]), 13);
+                  BOOST_LOG(info) << "edidMonitorDESC2: " << boost::algorithm::trim_copy(some_ascii_string);
+                }
+              }
+
+              edidMonitorDescriptorIndex = 108;
+              if (dataEDID[edidMonitorDescriptorIndex] == 0x00 && dataEDID[edidMonitorDescriptorIndex + 1] == 0x00) {
+                if (dataEDID[edidMonitorDescriptorIndex + 3] == 0xFF || dataEDID[edidMonitorDescriptorIndex + 3] == 0xFE || dataEDID[edidMonitorDescriptorIndex + 3] == 0xFC) {
+                  std::string some_ascii_string;
+                  some_ascii_string.assign(reinterpret_cast<char *>(&dataEDID[edidMonitorDescriptorIndex + 5]), 13);
+                  BOOST_LOG(info) << "edidMonitorDESC3: " << boost::algorithm::trim_copy(some_ascii_string);
+                }
+              }
+            }
+          }
+
+          RegCloseKey(regKey);
         }
 
-        RegCloseKey(hEDIDRegKey);
+        {
+          // Find the ContainerID registry key
+          HKEY regKey;
+          auto status = RegOpenKeyW(HKEY_LOCAL_MACHINE, instance_path.c_str(), &regKey);
+          if (status != ERROR_SUCCESS)
+            continue;  // Error
+
+          // Read the ContainerID data from the registry
+          WCHAR data[1024];
+          DWORD sizeOfDataInBytes = sizeof(data);
+          if (ERROR_SUCCESS == RegGetValueW(regKey, NULL, L"ContainerID", RRF_RT_REG_SZ, NULL, &data, &sizeOfDataInBytes)) {
+            std::wstring container_id_wstr;
+            container_id_wstr.assign(data, sizeOfDataInBytes / sizeof(WCHAR));
+            BOOST_LOG(info) << "ContainerID: " << boost::algorithm::trim_copy(convert_to_string(container_id_wstr));
+          }
+
+          RegCloseKey(regKey);
+        }
+
+        // if (w_utils::is_active(path)) {
+        //   const auto mode { w_utils::get_source_mode(w_utils::get_source_index(path, display_data->modes), display_data->modes) };
+
+        //   available_devices[device_id] = device_info_t {
+        //     w_utils::get_display_name(path),
+        //     w_utils::get_friendly_name(path),
+        //     mode && w_utils::is_primary(*mode) ? device_state_e::primary : device_state_e::active,
+        //     w_utils::get_hdr_state(path)
+        //   };
+        // }
+        // else {
+        //   available_devices[device_id] = device_info_t {
+        //     std::string {},  // Inactive device can have multiple display names, so it's just meaningless
+        //     w_utils::get_friendly_name(path),
+        //     device_state_e::inactive,
+        //     hdr_state_e::unknown
+        //   };
+        // }
       }
-
-      // if (w_utils::is_active(path)) {
-      //   const auto mode { w_utils::get_source_mode(w_utils::get_source_index(path, display_data->modes), display_data->modes) };
-
-      //   available_devices[device_id] = device_info_t {
-      //     w_utils::get_display_name(path),
-      //     w_utils::get_friendly_name(path),
-      //     mode && w_utils::is_primary(*mode) ? device_state_e::primary : device_state_e::active,
-      //     w_utils::get_hdr_state(path)
-      //   };
-      // }
-      // else {
-      //   available_devices[device_id] = device_info_t {
-      //     std::string {},  // Inactive device can have multiple display names, so it's just meaningless
-      //     w_utils::get_friendly_name(path),
-      //     device_state_e::inactive,
-      //     hdr_state_e::unknown
-      //   };
-      // }
     }
-
     return available_devices;
   }
 

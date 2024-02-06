@@ -1,11 +1,10 @@
-/**
- * @file src/audio.h
- * @brief todo
- */
 #pragma once
 
+// local includes
+#include "platform/common.h"
 #include "thread_safe.h"
 #include "utility.h"
+
 namespace audio {
   enum stream_config_e : int {
     STEREO,
@@ -42,8 +41,29 @@ namespace audio {
     std::bitset<MAX_FLAGS> flags;
   };
 
+  struct audio_ctx_t {
+    // We want to change the sink for the first stream only
+    std::unique_ptr<std::atomic_bool> sink_flag;
+
+    std::unique_ptr<platf::audio_control_t> control;
+
+    bool restore_sink;
+    platf::sink_t sink;
+  };
+
   using buffer_t = util::buffer_t<std::uint8_t>;
   using packet_t = std::pair<void *, buffer_t>;
+  using audio_ctx_ref_t = safe::shared_t<audio::audio_ctx_t>::ptr_t;
+
   void
   capture(safe::mail_t mail, config_t config, void *channel_data);
+
+  /*!
+   * Returns the reference to the audio context.
+   *
+   * @note aside from configuration purposes, it can be used to extend the active
+   *       session lifetime to delay restoring sink.
+   */
+  audio_ctx_ref_t
+  get_audio_ctx_ref();
 }  // namespace audio

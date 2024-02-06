@@ -34,7 +34,7 @@ namespace display_device {
 
   void
   session_t::restore_state() {
-    return settings.revert_settings();
+    settings.revert_settings();
   }
 
 }  // namespace display_device

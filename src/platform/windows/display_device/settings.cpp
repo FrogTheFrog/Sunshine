@@ -3,6 +3,7 @@
 
 // local includes
 #include "settings_topology.h"
+#include "src/audio.h"
 #include "src/display_device/to_string.h"
 #include "src/main.h"
 
@@ -165,6 +166,11 @@ namespace display_device {
 
   }  // namespace
 
+  //! A simple struct that automatically captures the audio ctx reference to extend audio session.
+  struct settings_t::shared_audio_t {
+    decltype(audio::get_audio_ctx_ref()) audio_ref { audio::get_audio_ctx_ref() };
+  };
+
   settings_t::settings_t() {
   }
 
@@ -178,7 +184,23 @@ namespace display_device {
       return { apply_result_t::result_e::config_parse_fail };
     }
 
-    return apply_config(*parsed_config);
+    const auto result { apply_config(*parsed_config) };
+    if (result) {
+      if (parsed_config->device_prep == parsed_config_t::device_prep_e::ensure_only_display) {
+        // It is very likely that in this situation our "current" audio device is gone, so we
+        // want to extend the audio "session" until we revert our changes
+        BOOST_LOG(info) << "Extending audio session lifetime";
+        shared_audio = std::make_unique<shared_audio_t>();
+      }
+      else if (shared_audio) {
+        // Just to be safe in the future when the video config can be reloaded
+        // without Sunshine restarting, we should cleanup
+        BOOST_LOG(info) << "Releasing audio session lifetime";
+        shared_audio = nullptr;
+      }
+    }
+
+    return result;
   }
 
   settings_t::apply_result_t
@@ -285,6 +307,11 @@ namespace display_device {
       revert_settings(*data);
       remove_file(filepath);
       data = nullptr;
+    }
+
+    if (shared_audio) {
+      BOOST_LOG(info) << "Releasing audio session lifetime";
+      shared_audio = nullptr;
     }
   }
 

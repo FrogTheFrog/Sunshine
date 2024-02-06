@@ -70,6 +70,10 @@ namespace display_device {
 
     std::unique_ptr<data_t> data;
     std::filesystem::path filepath;
+
+    //! Reference to audio object to extend the lifetime as sometimes the sink might belong to the disabled display.
+    struct shared_audio_t;
+    std::unique_ptr<shared_audio_t> shared_audio;
   };
 
 }  // namespace display_device

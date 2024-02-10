@@ -184,18 +184,20 @@ namespace display_device {
       return { apply_result_t::result_e::config_parse_fail };
     }
 
+    const bool display_may_change { parsed_config->device_prep == parsed_config_t::device_prep_e::ensure_only_display };
+    if (display_may_change && !shared_audio) {
+      // It is very likely that in this situation our "current" audio device will be gone, so we
+      // want to capture the audio sink immediately and extend the session until we revert our changes
+      BOOST_LOG(info) << "Capturing audio sink before changing display";
+      shared_audio = std::make_unique<shared_audio_t>();
+    }
+
     const auto result { apply_config(*parsed_config) };
     if (result) {
-      if (parsed_config->device_prep == parsed_config_t::device_prep_e::ensure_only_display) {
-        // It is very likely that in this situation our "current" audio device is gone, so we
-        // want to extend the audio "session" until we revert our changes
-        BOOST_LOG(info) << "Extending audio session lifetime";
-        shared_audio = std::make_unique<shared_audio_t>();
-      }
-      else if (shared_audio) {
+      if (!display_may_change && shared_audio) {
         // Just to be safe in the future when the video config can be reloaded
-        // without Sunshine restarting, we should cleanup
-        BOOST_LOG(info) << "Releasing audio session lifetime";
+        // without Sunshine restarting, we should cleanup in case we are no longer
+        BOOST_LOG(info) << "Releasing captured audio sink";
         shared_audio = nullptr;
       }
     }
@@ -310,7 +312,7 @@ namespace display_device {
     }
 
     if (shared_audio) {
-      BOOST_LOG(info) << "Releasing audio session lifetime";
+      BOOST_LOG(info) << "Releasing captured audio sink";
       shared_audio = nullptr;
     }
   }

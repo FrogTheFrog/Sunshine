@@ -324,7 +324,33 @@
     "wan_encryption_mode": "WAN Encryption Mode",
     "wan_encryption_mode_1": "Enabled for supported clients (default)",
     "wan_encryption_mode_2": "Required for all clients",
-    "wan_encryption_mode_desc": "This determines when encryption will be used when streaming over the Internet. Encryption can reduce streaming performance, particularly on less powerful hosts and clients."
+    "wan_encryption_mode_desc": "This determines when encryption will be used when streaming over the Internet. Encryption can reduce streaming performance, particularly on less powerful hosts and clients.",
+
+    "dd_options_header_windows": "Advanced display device options",
+    "dd_config_label_windows": "Device configuration",
+    "dd_config_disabled_windows": "Disabled",
+    "dd_config_verify_only_windows": "Enabled",
+    "dd_config_ensure_active_windows": "Activate the display automatically",
+    "dd_config_ensure_primary_windows": "Activate the display automatically and make it a primary display",
+    "dd_config_ensure_only_display_windows": "Deactivate other displays and activate only the specified display",
+
+
+    "dd_resolution_option_manual_desc_windows": "Enter the resolution to be used",
+    "dd_resolution_option_automatic_windows": "Use resolution provided by the client",
+    "dd_resolution_option_manual_windows": "Use manually entered resolution",
+    "dd_resolution_option_disabled_windows": "Do not change resolution",
+    "dd_resolution_option_ogs_desc_windows": "\"Optimize game settings\" option must be enabled on the Moonlight client for this to work.",
+    "dd_resolution_option_windows": "Resolution",
+
+    "dd_refresh_rate_option_manual_desc_windows": "Enter the refresh rate to be used",
+    "dd_refresh_rate_option_automatic_windows": "Use FPS value provided by the client",
+    "dd_refresh_rate_option_manual_windows": "Use manually entered refresh rate",
+    "dd_refresh_rate_option_disabled_windows": "Do not change refresh rate",
+    "dd_refresh_rate_option_windows": "Refresh rate",
+
+    "dd_hdr_option_automatic_windows": "Switch on/off the HDR mode as requested by the client",
+    "dd_hdr_option_disabled_windows": "Do not change HDR settings",
+    "dd_hdr_option_windows": "HDR"
   },
   "index": {
     "description": "Sunshine is a self-hosted game stream host for Moonlight.",
@@ -395,7 +421,12 @@
     "unpair_single_no_devices": "There are no paired devices.",
     "unpair_single_success": "However, the device(s) may still be in an active session. Use the 'Force Close' button above to end any open sessions.",
     "unpair_single_unknown": "Unknown Client",
-    "unpair_title": "Unpair Devices"
+    "unpair_title": "Unpair Devices",
+
+    "dd_reset_desc": "If Sunshine is stuck trying to restore the changed display device settings, you can reset the settings and proceed to restore the display state manually.",
+    "dd_reset_error": "Error while resetting persistence!",
+    "dd_reset_success": "Success resetting persistence!",
+    "dd_reset": "Reset Persistent Display Device Settings"
   },
   "welcome": {
     "confirm_password": "Confirm password",

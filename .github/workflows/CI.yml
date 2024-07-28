@@ -3,10 +3,10 @@ name: CI
 
 on:
   pull_request:
-    branches: [master]
+    branches: [libdd-part-1]
     types: [opened, synchronize, reopened]
   push:
-    branches: [master]
+    branches: [libdd-part-1]
   workflow_dispatch:
 
 concurrency:

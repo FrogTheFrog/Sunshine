@@ -370,6 +370,38 @@ namespace config {
 #undef _CONVERT_
       return video_t::dd_t::hdr_option_e::disabled;  // Default to this if value is invalid
     }
+
+    video_t::dd_t::mode_remapping_t
+    mode_remapping_from_view(const std::string_view value) {
+      const auto parse_entry_list{[](const auto& entry_list, auto& output_field) {
+        for (auto &[_, entry] : entry_list) {
+          auto requested_resolution = entry.template get_optional<std::string>("requested_resolution"s);
+          auto requested_fps = entry.template get_optional<std::string>("requested_fps"s);
+          auto final_resolution = entry.template get_optional<std::string>("final_resolution"s);
+          auto final_refresh_rate = entry.template get_optional<std::string>("final_refresh_rate"s);
+
+          output_field.push_back(video_t::dd_t::mode_remapping_entry_t {
+            requested_resolution.value_or(""),
+            requested_fps.value_or(""),
+            final_resolution.value_or(""),
+            final_refresh_rate.value_or("") });
+        }
+      }};
+
+      // We need to add a wrapping object to make it valid JSON, otherwise ptree cannot parse it.
+      std::stringstream json_stream;
+      json_stream << "{\"dd_mode_remapping\":" << value << "}";
+
+      boost::property_tree::ptree json_tree;
+      boost::property_tree::read_json(json_stream, json_tree);
+
+      video_t::dd_t::mode_remapping_t output;
+      parse_entry_list(json_tree.get_child("dd_mode_remapping.mixed"), output.mixed);
+      parse_entry_list(json_tree.get_child("dd_mode_remapping.resolution_only"), output.resolution_only);
+      parse_entry_list(json_tree.get_child("dd_mode_remapping.refresh_rate_only"), output.refresh_rate_only);
+
+      return output;
+    }
   }  // namespace dd
 
   video_t video {
@@ -432,7 +464,8 @@ namespace config {
       {},  // manual_resolution
       video_t::dd_t::refresh_rate_option_e::automatic,  // refresh_rate_option
       {},  // manual_refresh_rate
-      video_t::dd_t::hdr_option_e::automatic  // hdr_option
+      video_t::dd_t::hdr_option_e::automatic,  // hdr_option
+      {}  // mode_remapping
     }  // display_device
   };
 
@@ -1095,6 +1128,7 @@ namespace config {
     generic_f(vars, "dd_refresh_rate_option", video.dd.refresh_rate_option, dd::refresh_rate_option_from_view);
     string_f(vars, "dd_manual_refresh_rate", video.dd.manual_refresh_rate);
     generic_f(vars, "dd_hdr_option", video.dd.hdr_option, dd::hdr_option_from_view);
+    generic_f(vars, "dd_mode_remapping", video.dd.mode_remapping, dd::mode_remapping_from_view);
 
     path_f(vars, "pkey", nvhttp.pkey);
     path_f(vars, "cert", nvhttp.cert);

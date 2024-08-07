@@ -102,12 +102,26 @@ namespace config {
         automatic /**< Change HDR settings and use the state requested by Moonlight */
       };
 
+      struct mode_remapping_entry_t {
+        std::string requested_resolution;
+        std::string requested_fps;
+        std::string final_resolution;
+        std::string final_refresh_rate;
+      };
+
+      struct mode_remapping_t {
+        std::vector<mode_remapping_entry_t> mixed;
+        std::vector<mode_remapping_entry_t> resolution_only;
+        std::vector<mode_remapping_entry_t> refresh_rate_only;
+      };
+
       config_option_e configuration_option;
       resolution_option_e resolution_option;
       std::string manual_resolution;
       refresh_rate_option_e refresh_rate_option;
       std::string manual_refresh_rate;
       hdr_option_e hdr_option;
+      mode_remapping_t mode_remapping;
     } dd;
   };
 

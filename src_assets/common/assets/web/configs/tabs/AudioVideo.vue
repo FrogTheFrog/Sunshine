@@ -13,6 +13,7 @@ const props = defineProps([
   'resolutions',
   'fps',
   'min_fps_factor',
+  'dd_mode_remapping',
 ])
 
 const config = ref(props.config)
@@ -80,6 +81,7 @@ const config = ref(props.config)
     <DisplayDeviceOptions
       :platform="platform"
       :config="config"
+      :dd_mode_remapping="dd_mode_remapping"
     />
 
     <!-- Display Modes -->

@@ -394,10 +394,11 @@ namespace display_device {
     /**
      * @brief Construct a settings manager interface to manage display device settings.
      * @param persistence_filepath File location for saving persistent state.
+     * @param video_config User's video related configuration.
      * @return An interface or nullptr if the OS does not support the interface.
      */
     std::unique_ptr<SettingsManagerInterface>
-    make_settings_manager(const std::filesystem::path &persistence_filepath) {
+    make_settings_manager(const std::filesystem::path &persistence_filepath, const config::video_t &video_config) {
 #ifdef _WIN32
       return std::make_unique<SettingsManager>(
         std::make_shared<WinDisplayDevice>(std::make_shared<WinApiLayer>()),
@@ -412,14 +413,14 @@ namespace display_device {
   }  // namespace
 
   std::unique_ptr<platf::deinit_t>
-  init(const std::filesystem::path &persistence_filepath) {
+  init(const std::filesystem::path &persistence_filepath, const config::video_t &video_config) {
     // We can support re-init without any issues, however we should make sure to cleanup first!
     revert_configuration(true);
     SM_INSTANCE = nullptr;
 
     // If we fail to create settings manager, this means platform is not supported and
     // we will need to provided error-free passtrough in other methods
-    if (auto settings_manager { make_settings_manager(persistence_filepath) }) {
+    if (auto settings_manager { make_settings_manager(persistence_filepath, video_config) }) {
       SM_INSTANCE = std::make_unique<RetryScheduler<SettingsManagerInterface>>(std::move(settings_manager));
 
       const auto available_devices { SM_INSTANCE->execute([](auto &settings_iface) { return settings_iface.enumAvailableDevices(); }) };

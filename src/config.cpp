@@ -378,7 +378,6 @@ namespace config {
     0,  // hevc_mode
     0,  // av1_mode
 
-    1,  // min_fps_factor
     2,  // min_threads
     {
       "superfast"s,  // preset
@@ -433,7 +432,9 @@ namespace config {
       video_t::dd_t::refresh_rate_option_e::automatic,  // refresh_rate_option
       {},  // manual_refresh_rate
       video_t::dd_t::hdr_option_e::automatic  // hdr_option
-    }  // display_device
+    },  // display_device
+
+    1  // min_fps_factor
   };
 
   audio_t audio {
@@ -1004,7 +1005,6 @@ namespace config {
     int_f(vars, "qp", video.qp);
     int_between_f(vars, "hevc_mode", video.hevc_mode, { 0, 3 });
     int_between_f(vars, "av1_mode", video.av1_mode, { 0, 3 });
-    int_between_f(vars, "min_fps_factor", video.min_fps_factor, { 1, 3 });
     int_f(vars, "min_threads", video.min_threads);
     string_f(vars, "sw_preset", video.sw.sw_preset);
     if (!video.sw.sw_preset.empty()) {
@@ -1080,6 +1080,9 @@ namespace config {
     generic_f(vars, "dd_refresh_rate_option", video.dd.refresh_rate_option, dd::refresh_rate_option_from_view);
     string_f(vars, "dd_manual_refresh_rate", video.dd.manual_refresh_rate);
     generic_f(vars, "dd_hdr_option", video.dd.hdr_option, dd::hdr_option_from_view);
+    bool_f(vars, "dd_hdr_workaround", video.dd.hdr_workaround);
+
+    int_between_f(vars, "min_fps_factor", video.min_fps_factor, { 1, 3 });
 
     path_f(vars, "pkey", nvhttp.pkey);
     path_f(vars, "cert", nvhttp.cert);

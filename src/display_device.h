@@ -24,14 +24,16 @@ namespace display_device {
   /**
    * @brief Initialize the implementation and perform the initial state recovery (if needed).
    * @param persistence_filepath File location for reading/saving persistent state.
+   * @param video_config User's video related configuration.
    * @returns A deinit_t instance that performs cleanup when destroyed.
    *
    * @examples
-   * const auto init_guard { init("/my/persitence/file.state") };
+   * const config::video_t &video_config { config::video };
+   * const auto init_guard { init("/my/persitence/file.state", video_config) };
    * @examples_end
    */
   [[nodiscard]] std::unique_ptr<platf::deinit_t>
-  init(const std::filesystem::path &persistence_filepath);
+  init(const std::filesystem::path &persistence_filepath, const config::video_t &video_config);
 
   /**
    * @brief Map the output name to a specific display.

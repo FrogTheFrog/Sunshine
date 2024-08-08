@@ -21,7 +21,6 @@ namespace config {
     int hevc_mode;
     int av1_mode;
 
-    int min_fps_factor;  // Minimum fps target, determines minimum frame time
     int min_threads;  // Minimum number of threads/slices for CPU encoding
     struct {
       std::string sw_preset;
@@ -108,7 +107,10 @@ namespace config {
       refresh_rate_option_e refresh_rate_option;
       std::string manual_refresh_rate;
       hdr_option_e hdr_option;
+      bool hdr_workaround;
     } dd;
+
+    int min_fps_factor;  // Minimum fps target, determines minimum frame time
   };
 
   struct audio_t {

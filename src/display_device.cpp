@@ -405,7 +405,8 @@ namespace display_device {
         std::make_shared<sunshine_audio_context_t>(),
         std::make_unique<PersistentState>(
           std::make_shared<FileSettingsPersistence>(persistence_filepath)),
-        WinWorkarounds {});
+        WinWorkarounds {
+          .m_hdr_blank_delay = video_config.dd.hdr_workaround ? std::make_optional(500ms) : std::nullopt });
 #else
       return nullptr;
 #endif

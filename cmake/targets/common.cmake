@@ -62,9 +62,7 @@ add_custom_target(web-ui ALL
         VERBATIM)
 
 # docs
-if(BUILD_DOCS)
-    add_subdirectory(third-party/doxyconfig docs)
-endif()
+
 
 # tests
 if(BUILD_TESTS)
